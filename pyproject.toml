@@ -1,0 +1,18 @@
+[project]
+name = "mcp-poc"
+version = "0.1.0"
+description = "Console app that launches Playwright, scans a page for interactable elements, and outputs robust XPath locators."
+authors = [
+  { name = "Your Name" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "playwright>=1.47.0",
+]
+
+[project.scripts]
+mcp-scan = "mcp_poc.mcp_console:main"
+
+[tool.playwright]
+# Optional place-holder for future config
