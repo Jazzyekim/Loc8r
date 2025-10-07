@@ -15,5 +15,9 @@ dependencies = [
 loc8 = "locator_scanner.scanner_console:main"
 loc8r = "locator_scanner.scanner_console:main"
 
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [tool.playwright]
 # Optional place-holder for future config
