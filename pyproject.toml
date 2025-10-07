@@ -12,7 +12,8 @@ dependencies = [
 ]
 
 [project.scripts]
-loc8 = "locator_scanner.mcp_console:main"
+loc8 = "locator_scanner.scanner_console:main"
+loc8r = "locator_scanner.scanner_console:main"
 
 [tool.playwright]
 # Optional place-holder for future config

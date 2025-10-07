@@ -27,6 +27,8 @@ python -m playwright install
 Run the console app:
 
 ```bash
+loc8r
+# or
 loc8
 ```
 
