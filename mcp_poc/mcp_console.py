@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Optional
 
 from playwright.sync_api import sync_playwright, Page
 
@@ -9,14 +10,14 @@ from .xpath_builder import scan_interactables
 BANNER = (
     "MCP Playwright Scanner\n"
     "Commands:\n"
-    "  url <https://...>  -> navigate to a URL in the opened page\n"
-    "  scan               -> scan current page for interactable elements and print XPaths\n"
-    "  help               -> show this help\n"
-    "  quit/exit          -> close browser and exit\n"
+    "  url <https://...>      -> navigate to a URL in the opened page\n"
+    "  scan [output.json]     -> scan page for interactable elements and print locators; optionally save JSON to file\n"
+    "  help                   -> show this help\n"
+    "  quit/exit              -> close browser and exit\n"
 )
 
 
-def _print_scan(page: Page) -> None:
+def _print_scan(page: Page, out_path: Optional[str] = None) -> None:
     items = scan_interactables(page)
     print(f"Found {len(items)} interactable elements:\n")
     for i, it in enumerate(items, 1):
@@ -27,10 +28,33 @@ def _print_scan(page: Page) -> None:
         txt = (it.get("text") or "")
         txt_disp = txt if len(txt) <= 120 else txt[:117] + "..."
         xp = it.get("xpath")
-        print(f"#{i}: <{tag}> text='{txt_disp}'\n    xpath: {xp}")
+        css = it.get("css")
+        idv = it.get("id")
+        role = it.get("role")
+        role_str = None
+        if isinstance(role, dict) and role.get("role"):
+            if role.get("name"):
+                role_str = f"get_by_role('{role['role']}', name='{role['name']}')"
+            else:
+                role_str = f"get_by_role('{role['role']}')"
+        print(
+            f"#{i}: <{tag}> text='{txt_disp}'\n"
+            f"    id: {idv}\n"
+            f"    xpath: {xp}\n"
+            f"    css: {css}\n"
+            f"    role: {role_str}"
+        )
     print()
     print("JSON output (copy-paste if needed):")
-    print(json.dumps(items, ensure_ascii=False, indent=2))
+    json_text = json.dumps(items, ensure_ascii=False, indent=2)
+    print(json_text)
+    if out_path:
+        try:
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(json_text)
+            print(f"Saved scan results to: {out_path}")
+        except Exception as e:
+            print(f"Failed to save results to '{out_path}': {e}")
 
 
 def main() -> None:
@@ -71,7 +95,8 @@ def main() -> None:
                     print(f"Navigation failed: {e}")
             elif cmd == "scan":
                 try:
-                    _print_scan(page)
+                    out_path = arg if arg else None
+                    _print_scan(page, out_path)
                 except Exception as e:
                     print(f"Scan failed: {e}")
             else:

@@ -1,6 +1,6 @@
 # MCP Playwright Scanner (PoC)
 
-A small Python console application that launches a Chromium browser using Playwright, lets you navigate to a page, and upon command scans for interactable elements, generating robust XPath locators for each.
+A small Python console application that launches a Chromium browser using Playwright, lets you navigate to a page, and upon command scans for interactable elements, generating robust locators for each element: XPath, CSS, id (when available), and Playwright role-based locators.
 
 Note: This proof-of-concept uses Playwright directly from Python. It is structured so it can be adapted to an MCP server/client flow if needed.
 
@@ -33,7 +33,7 @@ mcp-scan
 You will see a Chromium window open and a prompt in your terminal. Available commands:
 
 - `url <https://...>` Navigate the opened page to a specific URL.
-- `scan` Scan current page for interactable elements and print best-effort unique XPath locators along with JSON output.
+- `scan [output.json]` Scan current page for interactable elements and print best-effort unique locators (XPath, CSS, id, Playwright role). If `output.json` is provided, the JSON results will be saved to that file as well.
 - `help` Show commands.
 - `quit` or `exit` Close the browser and exit.
 
@@ -44,7 +44,7 @@ $ mcp-scan
 MCP Playwright Scanner
 Commands:
   url <https://...>  -> navigate to a URL in the opened page
-  scan               -> scan current page for interactable elements and print XPaths
+  scan               -> scan current page for interactable elements and print locators (XPath, CSS, id, role)
   help               -> show this help
   quit/exit          -> close browser and exit
 Launching Chromium...
@@ -53,21 +53,21 @@ mcp> url https://example.com
 mcp> scan
 Found 4 interactable elements:
 #1: <a> text='More information'
+    id: None
     xpath: //a[normalize-space(.)='More information']
+    css: a[href]
+    role: get_by_role('link', name='More information')
 ...
 ```
 
-## How XPath generation works (summary)
+## How locator generation works (summary)
 
-- Prefer unique `id` when available.
-- Try strong attributes (`data-testid`, `data-test`, `data-qa`, `name`, `aria-label`, `title`).
-- Use text for links/buttons.
-- For inputs, attempt label association.
-- Combine tag + multiple attribute predicates, optionally narrowing with contains(text).
-- Consider nearest ancestor with a stable attribute.
-- Fallback to indexed selector when necessary.
+- id: If the element has an id and it is unique, it is reported and used directly.
+- XPath: Prefer unique id; then strong attributes (`data-testid`, `data-test`, `data-qa`, `name`, `aria-label`, `title`); for links/buttons try text; for inputs try associated label; combine tag+attributes; try stable ancestor; fallback to an index.
+- CSS: Prefer #id or [id="..."]; try strong attributes; combine tag+attributes; narrow via stable ancestor; fallback to :nth-of-type under ancestor/body.
+- Playwright role: Infer ARIA role (explicit role attribute or implicit from tag/type/href) and an accessible name (aria-label/title/alt/label or text). If `get_by_role(role, name=...)` is unique, it's reported.
 
-Each candidate XPath is validated for uniqueness on the current DOM; if not unique, the builder tries stronger/narrower options before falling back to an index.
+Each candidate is validated for uniqueness against the live DOM before being accepted; otherwise, the builder proceeds to stronger/narrower options or safe fallbacks.
 
 ## Notes
 - Increase default timeouts or adjust logic as needed for heavy/SPA pages.

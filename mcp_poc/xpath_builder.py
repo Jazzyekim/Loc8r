@@ -6,6 +6,22 @@ from typing import List, Dict, Any, Optional, Tuple
 from playwright.sync_api import Page, ElementHandle
 
 
+def _css_escape_value(val: str) -> str:
+    # Minimal escaping for CSS attribute values: escape double quotes and backslashes
+    return val.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _build_css_attr_predicates(attrs: Dict[str, Optional[str]]) -> List[str]:
+    preds: List[str] = []
+    for k, v in attrs.items():
+        if not v:
+            continue
+        if len(v) > 120:
+            continue
+        preds.append(f"[{k}=\"{_css_escape_value(v)}\"]")
+    return preds
+
+
 def _escape_xpath_literal(s: str) -> str:
     # Handles quotes inside string for XPath literal
     if "'" not in s:
@@ -47,6 +63,15 @@ def _normalize_text(text: str) -> str:
 def _try_unique(page: Page, xpath: str) -> Tuple[bool, int]:
     try:
         matches = page.locator(f"xpath={xpath}")
+        count = matches.count()
+        return count == 1, count
+    except Exception:
+        return False, 0
+
+
+def _try_unique_css(page: Page, css: str) -> Tuple[bool, int]:
+    try:
+        matches = page.locator(css)
         count = matches.count()
         return count == 1, count
     except Exception:
@@ -119,12 +144,16 @@ def build_xpath_for_element(page: Page, el: ElementHandle) -> str:
     try:
         label_text = el.evaluate(
             "(n) => {\n"
-            "  function norm(s){return (s||'').replace(/\s+/g,' ').trim();}\n"
+            "  function norm(s){return (s||'').replace(/\\s+/g,' ').trim();}\n"
             "  if (n.id) {\n"
-            "    const lbl = document.querySelector(`label[for=" + CSS.escape(n.id) + "]`);\n"
-            "    if (lbl) return norm(lbl.innerText||lbl.textContent);\n"
+            "    const labels = document.querySelectorAll('label[for]');\n"
+            "    for (const lbl of labels) {\n"
+            "      if (lbl.getAttribute('for') === n.id) {\n"
+            "        return norm(lbl.innerText||lbl.textContent);\n"
+            "      }\n"
+            "    }\n"
             "  }\n"
-            "  let p = n.parentElement;\n"
+            "  let p = n;\n"
             "  while (p) {\n"
             "    if (p.tagName && p.tagName.toLowerCase()==='label') {\n"
             "      return norm(p.innerText||p.textContent);\n"
@@ -132,7 +161,7 @@ def build_xpath_for_element(page: Page, el: ElementHandle) -> str:
             "    p = p.parentElement;\n"
             "  }\n"
             "  return null;\n"
-            "}"
+            "}" 
         )
     except Exception:
         label_text = None
@@ -211,6 +240,172 @@ def build_xpath_for_element(page: Page, el: ElementHandle) -> str:
     return xpath
 
 
+def _css_selector_from_attrs(tag: str, attrs: Dict[str, Optional[str]]) -> str:
+    preds = _build_css_attr_predicates(attrs)
+    base = tag if tag else "*"
+    if preds:
+        return base + "".join(preds)
+    return base
+
+
+def build_css_for_element(page: Page, el: ElementHandle) -> str:
+    info = _get_element_basic_info(el)
+    tag = info.get("tag") or "*"
+    attrs: Dict[str, str] = info.get("attrs") or {}
+
+    # 1) id unique
+    el_id = attrs.get("id")
+    if el_id:
+        simple = re.match(r"^[A-Za-z_][A-Za-z0-9\-\:_\.]*$", el_id or "") is not None
+        css = f"#{el_id}" if simple else f"[id=\"{_css_escape_value(el_id)}\"]"
+        unique, _ = _try_unique_css(page, css)
+        if unique:
+            return css
+
+    # 2) strong attributes
+    for strong in ["data-testid", "data-test", "data-qa", "name", "aria-label", "title"]:
+        val = attrs.get(strong)
+        if val:
+            css = f"{tag}[{strong}=\"{_css_escape_value(val)}\"]"
+            unique, _ = _try_unique_css(page, css)
+            if unique:
+                return css
+
+    # 3) tag + multiple attrs
+    cand = {k: attrs.get(k) for k in CANDIDATE_ATTRS}
+    css = _css_selector_from_attrs(tag, cand)
+    if css:
+        unique, _ = _try_unique_css(page, css)
+        if unique:
+            return css
+
+    # 4) with ancestor having stable id/data-testid
+    try:
+        anc = el.evaluate(
+            "(n)=>{\n"
+            "  const pick=['id','data-testid','data-test','data-qa'];\n"
+            "  let a=n.parentElement;\n"
+            "  while(a){\n"
+            "    const attrs={};\n"
+            "    for(const k of pick){ if(a.hasAttribute && a.hasAttribute(k)) attrs[k]=a.getAttribute(k); }\n"
+            "    if(attrs.id||attrs['data-testid']||attrs['data-test']||attrs['data-qa']){\n"
+            "      const tag=a.tagName?a.tagName.toLowerCase():'div';\n"
+            "      return {tag, attrs};\n"
+            "    }\n"
+            "    a=a.parentElement;\n"
+            "  }\n"
+            "  return null;\n"
+            "}"
+        )
+    except Exception:
+        anc = None
+    if anc:
+        a_tag = anc.get("tag") or "*"
+        a_sel = _css_selector_from_attrs(a_tag, anc.get("attrs") or {})
+        child_sel = _css_selector_from_attrs(tag, cand)
+        css2 = f"{a_sel} {child_sel}"
+        unique, _ = _try_unique_css(page, css2)
+        if unique:
+            return css2
+
+    # 5) fallback nth-of-type under nearest stable ancestor or body
+    try:
+        nth = el.evaluate(
+            "(n)=>{\n"
+            "  const p=n.parentElement;\n"
+            "  if(!p) return {index:1, parent:null};\n"
+            "  const tag=n.tagName.toLowerCase();\n"
+            "  let c=0;\n"
+            "  for(const ch of p.children){ if(ch.tagName && ch.tagName.toLowerCase()===tag){ c++; if(ch===n) return {index:c}; } }\n"
+            "  return {index:1};\n"
+            "}"
+        )
+    except Exception:
+        nth = {"index": 1}
+    idx = nth.get("index", 1)
+
+    parent_css = "body"
+    if anc:
+        parent_css = _css_selector_from_attrs(anc.get("tag") or "*", anc.get("attrs") or {})
+    css3 = f"{parent_css} > {tag}:nth-of-type({idx})"
+    unique, _ = _try_unique_css(page, css3)
+    if unique:
+        return css3
+
+    # last resort: just tag
+    return tag
+
+
+def _infer_role_and_name(page: Page, el: ElementHandle) -> Tuple[Optional[str], Optional[str]]:
+    info = _get_element_basic_info(el)
+    tag = info.get("tag") or "*"
+    attrs: Dict[str, str] = info.get("attrs") or {}
+    text = _normalize_text(info.get("text") or "")
+
+    role = attrs.get("role")
+    itype = (attrs.get("type") or "").lower()
+    href = attrs.get("href")
+
+    if not role:
+        if tag == "button" or (tag == "input" and itype in {"button","submit","reset"}):
+            role = "button"
+        elif tag == "a" and href:
+            role = "link"
+        elif tag == "input" and itype == "checkbox":
+            role = "checkbox"
+        elif tag == "input" and itype == "radio":
+            role = "radio"
+        elif tag == "input" and itype in {"text","search","url","email","tel","password","number"}:
+            role = "textbox"
+        elif tag == "textarea":
+            role = "textbox"
+        elif tag == "select":
+            role = "combobox"
+        elif tag == "img":
+            role = "img"
+        elif attrs.get("tabindex") is not None:
+            role = "generic"
+
+    # name inference
+    name: Optional[str] = attrs.get("aria-label") or attrs.get("title") or attrs.get("alt")
+    if not name:
+        # try associated label for form controls
+        try:
+            lbl = el.evaluate(
+                "(n)=>{\n"
+                "  function norm(s){return (s||'').replace(/\\s+/g,' ').trim();}\n"
+                "  if(n.id){\n"
+                "    const labels=document.querySelectorAll('label[for]');\n"
+                "    for(const lb of labels){ if(lb.getAttribute('for')===n.id) return norm(lb.innerText||lb.textContent); }\n"
+                "  }\n"
+                "  let p=n; while(p){ if(p.tagName && p.tagName.toLowerCase()==='label') return norm(p.innerText||p.textContent); p=p.parentElement;}\n"
+                "  return null;\n"
+                "}"
+            )
+        except Exception:
+            lbl = None
+        if isinstance(lbl, str) and lbl.strip():
+            name = _normalize_text(lbl)
+    if not name and role in {"button","link"} and text:
+        name = text
+
+    return role, name
+
+
+def build_role_locator_for_element(page: Page, el: ElementHandle) -> Optional[Dict[str, Any]]:
+    role, name = _infer_role_and_name(page, el)
+    if not role:
+        return None
+    try:
+        loc = page.get_by_role(role, name=name) if name else page.get_by_role(role)
+        count = loc.count()
+        if count == 1:
+            return {"role": role, "name": name}
+    except Exception:
+        pass
+    return None
+
+
 def scan_interactables(page: Page) -> List[Dict[str, Any]]:
     selector = ", ".join(INTERACTABLE_CSS)
     els = page.query_selector_all(selector)
@@ -219,14 +414,19 @@ def scan_interactables(page: Page) -> List[Dict[str, Any]]:
         try:
             info = _get_element_basic_info(el)
             xpath = build_xpath_for_element(page, el)
+            css = build_css_for_element(page, el)
+            role_loc = build_role_locator_for_element(page, el)
+            attrs = info.get("attrs") or {}
             entry = {
                 "tag": info.get("tag"),
                 "text": _normalize_text(info.get("text")),
-                "attributes": info.get("attrs"),
+                "attributes": attrs,
+                "id": attrs.get("id"),
                 "xpath": xpath,
+                "css": css,
+                "role": role_loc,
             }
             results.append(entry)
         except Exception as e:
-            # continue on individual element errors
             results.append({"error": str(e)})
     return results
