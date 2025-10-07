@@ -45,7 +45,7 @@ Example session:
 
 ```
 $ loc8
-MCP Playwright Scanner
+Loc8r Playwright Scanner
 Commands:
   url <https://...>  -> navigate to a URL in the opened page
   scan               -> scan current page for interactable elements and print locators (XPath, CSS, id, role)
@@ -53,8 +53,8 @@ Commands:
   quit/exit          -> close browser and exit
 Launching Chromium...
 Browser launched. You can now type 'url <address>' to navigate, or manually navigate in the opened window.
-mcp> url https://example.com
-mcp> scan
+loc8r> url https://example.com
+loc8r> scan
 Found 4 interactable elements:
 #1: <a> text='More information'
     id: None

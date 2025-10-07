@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright, Page
 from .xpath_builder import scan_interactables
 
 BANNER = (
-    "MCP Playwright Scanner\n"
+    "Loc8r Playwright Scanner\n"
     "Commands:\n"
     "  url <https://...>      -> navigate to a URL in the opened page\n"
     "  scan [output.json]     -> scan page for interactable elements and print locators; optionally save JSON to file\n"
@@ -72,7 +72,7 @@ def main() -> None:
 
         while True:
             try:
-                raw = input("locat8r > ").strip()
+                raw = input("loc8r> ").strip()
             except (EOFError, KeyboardInterrupt):
                 print("\nExiting...")
                 break
