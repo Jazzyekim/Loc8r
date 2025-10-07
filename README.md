@@ -1,4 +1,4 @@
-# Locat8r - a Playwright Locator Scanner (PoC)
+# Loc8r - a Playwright Locator Scanner (PoC)
 
 A small Python console application that launches a Chromium browser using Playwright, lets you navigate to a page, and upon command scans for interactable elements, generating robust locators for each element: XPath, CSS, id (when available), Playwright role-based locators, and a human-friendly unique Name for each element.
 
@@ -28,7 +28,9 @@ Run the console app:
 
 ```bash
 loc8r
-# or
+``` 
+or
+```bash
 loc8
 ```
 
