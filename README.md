@@ -1,4 +1,4 @@
-# MCP Playwright Scanner (PoC)
+# Locat8r - a Playwright Locator Scanner (PoC)
 
 A small Python console application that launches a Chromium browser using Playwright, lets you navigate to a page, and upon command scans for interactable elements, generating robust locators for each element: XPath, CSS, id (when available), Playwright role-based locators, and a human-friendly unique Name for each element.
 
@@ -27,7 +27,7 @@ python -m playwright install
 Run the console app:
 
 ```bash
-mcp-scan
+loc8
 ```
 
 You will see a Chromium window open and a prompt in your terminal. Available commands:
@@ -40,7 +40,7 @@ You will see a Chromium window open and a prompt in your terminal. Available com
 Example session:
 
 ```
-$ mcp-scan
+$ loc8
 MCP Playwright Scanner
 Commands:
   url <https://...>  -> navigate to a URL in the opened page

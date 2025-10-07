@@ -1,5 +1,5 @@
 [project]
-name = "locator_scanner"
+name = "Locat8r"
 version = "0.1.0"
 description = "Console app that launches Playwright, scans a page for interactable elements, and outputs robust locators."
 authors = [
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-mcp-scan = "locator_scanner.mcp_console:main"
+loc8 = "locator_scanner.mcp_console:main"
 
 [tool.playwright]
 # Optional place-holder for future config

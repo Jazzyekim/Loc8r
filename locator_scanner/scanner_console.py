@@ -72,7 +72,7 @@ def main() -> None:
 
         while True:
             try:
-                raw = input("mcp> ").strip()
+                raw = input("locat8r > ").strip()
             except (EOFError, KeyboardInterrupt):
                 print("\nExiting...")
                 break
