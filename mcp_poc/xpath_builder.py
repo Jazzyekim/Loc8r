@@ -457,6 +457,61 @@ def build_role_locator_for_element(page: Page, el: ElementHandle) -> Optional[Di
     return None
 
 
+def _build_human_name(page: Page, el: ElementHandle) -> str:
+    # Prefer accessible or human-facing labels
+    try:
+        role, acc_name = _infer_role_and_name(page, el)
+    except Exception:
+        role, acc_name = None, None
+    try:
+        info = _get_element_basic_info(el)
+    except Exception:
+        info = {"tag": None, "text": None, "attrs": {}}
+    tag = (info.get("tag") or "element").lower()
+    text = _normalize_text(info.get("text") or "")
+    attrs: Dict[str, Any] = info.get("attrs") or {}
+
+    # Candidate list in priority order
+    candidates: List[Optional[str]] = [
+        acc_name,
+        attrs.get("aria-label"),
+        attrs.get("title"),
+        attrs.get("alt"),
+        text,
+        attrs.get("placeholder"),
+        attrs.get("value") if (tag in {"input", "button"}) else None,
+    ]
+    name: Optional[str] = None
+    for c in candidates:
+        if isinstance(c, str):
+            c2 = _normalize_text(c)
+            if c2:
+                name = c2
+                break
+    if not name:
+        # Fallback to a generic phrase
+        name = tag if tag else "element"
+    return name
+
+
+def _ensure_unique_names(items: List[Dict[str, Any]]) -> None:
+    counts: Dict[str, int] = {}
+    seen: Dict[str, int] = {}
+    for it in items:
+        base = _normalize_text(it.get("name") or "element")
+        if base not in counts:
+            counts[base] = 0
+        counts[base] += 1
+        if counts[base] == 1:
+            # first occurrence keeps the base name
+            it["name"] = base
+            seen[base] = 1
+        else:
+            # subsequent duplicates get a suffix (2), (3), ...
+            idx = counts[base]
+            it["name"] = f"{base} ({idx})"
+
+
 def scan_interactables(page: Page) -> List[Dict[str, Any]]:
     selector = ", ".join(INTERACTABLE_CSS)
     els = page.query_selector_all(selector)
@@ -468,11 +523,13 @@ def scan_interactables(page: Page) -> List[Dict[str, Any]]:
             css = build_css_for_element(page, el)
             role_loc = build_role_locator_for_element(page, el)
             attrs = info.get("attrs") or {}
+            name = _build_human_name(page, el)
             entry = {
                 "tag": info.get("tag"),
                 "text": _normalize_text(info.get("text")),
                 "attributes": attrs,
                 "id": attrs.get("id"),
+                "name": name,
                 "xpath": xpath,
                 "css": css,
                 "role": role_loc,
@@ -480,4 +537,6 @@ def scan_interactables(page: Page) -> List[Dict[str, Any]]:
             results.append(entry)
         except Exception as e:
             results.append({"error": str(e)})
+    # Ensure uniqueness of names across the page
+    _ensure_unique_names([it for it in results if "error" not in it])
     return results

@@ -27,6 +27,7 @@ def _print_scan(page: Page, out_path: Optional[str] = None) -> None:
         tag = it.get("tag")
         txt = (it.get("text") or "")
         txt_disp = txt if len(txt) <= 120 else txt[:117] + "..."
+        name = it.get("name") or ""
         xp = it.get("xpath")
         css = it.get("css")
         idv = it.get("id")
@@ -39,6 +40,7 @@ def _print_scan(page: Page, out_path: Optional[str] = None) -> None:
                 role_str = f"get_by_role('{role['role']}')"
         print(
             f"#{i}: <{tag}> text='{txt_disp}'\n"
+            f"    name: {name}\n"
             f"    id: {idv}\n"
             f"    xpath: {xp}\n"
             f"    css: {css}\n"

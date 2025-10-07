@@ -1,6 +1,6 @@
 # MCP Playwright Scanner (PoC)
 
-A small Python console application that launches a Chromium browser using Playwright, lets you navigate to a page, and upon command scans for interactable elements, generating robust locators for each element: XPath, CSS, id (when available), and Playwright role-based locators.
+A small Python console application that launches a Chromium browser using Playwright, lets you navigate to a page, and upon command scans for interactable elements, generating robust locators for each element: XPath, CSS, id (when available), Playwright role-based locators, and a human-friendly unique Name for each element.
 
 Note: This proof-of-concept uses Playwright directly from Python. It is structured so it can be adapted to an MCP server/client flow if needed.
 
@@ -33,7 +33,7 @@ mcp-scan
 You will see a Chromium window open and a prompt in your terminal. Available commands:
 
 - `url <https://...>` Navigate the opened page to a specific URL.
-- `scan [output.json]` Scan current page for interactable elements and print best-effort unique locators (XPath, CSS, id, Playwright role). If `output.json` is provided, the JSON results will be saved to that file as well.
+- `scan [output.json]` Scan current page for interactable elements and print best-effort unique locators (XPath, CSS, id, Playwright role) and a human-friendly unique Name. If `output.json` is provided, the JSON results will be saved to that file as well.
 - `help` Show commands.
 - `quit` or `exit` Close the browser and exit.
 
