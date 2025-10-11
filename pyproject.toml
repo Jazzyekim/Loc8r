@@ -9,11 +9,13 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
   "playwright>=1.47.0",
+  "jinja2>=3.1.0",
 ]
 
 [project.scripts]
 loc8 = "locator_scanner.scanner_console:main"
 loc8r = "locator_scanner.scanner_console:main"
+loc8r-codegen = "locator_scanner.codegen_pf:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
