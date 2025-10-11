@@ -20,7 +20,7 @@ BANNER = (
     "  url <https://...>      -> navigate to a URL in the opened page\n"
     "  scan [output.json]     -> scan page for interactable elements and print locators; optionally save JSON to file\n"
     "  codegen <json> [PageName] [outDir] -> generate Java Page Object (@FindBy) from scan JSON; prompts for PageName if omitted\n"
-    "  help                   -> show this help\n"
+    "  help [command]         -> show general help or detailed help for a command (e.g., 'help codegen')\n"
     "  quit/exit              -> close browser and exit\n"
 )
 
@@ -93,7 +93,49 @@ def main() -> None:
             if cmd in ("quit", "exit"):
                 break
             elif cmd == "help":
-                print(BANNER)
+                # Detailed help: allow 'help codegen', 'help scan', etc.
+                topic = arg.strip().lower()
+                if not topic:
+                    print(BANNER)
+                    print("Type 'help codegen' for detailed generator usage, or 'help scan' / 'help url'.")
+                else:
+                    if topic == "codegen":
+                        print(
+                            "\nCode generation (PageFactory, @FindBy)\n"
+                            "Usage: codegen <json> [PageName] [outDir]\n"
+                            "  <json>     Path to a scan JSON file produced by 'scan'\n"
+                            "  [PageName] Base page name (e.g., Login). The class will be '<Name>Page'. If omitted, you'll be prompted.\n"
+                            "  [outDir]   Output root (default: src/test/java). Package path is created within it.\n\n"
+                            "Examples:\n"
+                            "  codegen masha.json Login src/test/java\n"
+                            "  codegen login.json   # will prompt for page name\n\n"
+                            "Notes:\n"
+                            "- Uses stable-first locator priority: data-test/testid → id → name → css → xpath.\n"
+                            "- Fields and class are annotated with @Name; configure import via the standalone CLI 'loc8r-codegen'.\n"
+                            "- For more advanced options (package, timeout, annotation import), use the standalone CLI:\n"
+                            "    loc8r-codegen --input masha.json --package com.example.pages --class-name Login --out src/test/java\n"
+                        )
+                    elif topic == "scan":
+                        print(
+                            "\nScan current page for interactable elements\n"
+                            "Usage: scan [output.json]\n"
+                            "  Without argument: prints found elements and their locators (XPath, CSS, id, role).\n"
+                            "  With output.json: also saves the JSON results to the given file.\n"
+                        )
+                    elif topic == "url":
+                        print(
+                            "\nNavigate to URL in the opened browser\n"
+                            "Usage: url <https://...>\n"
+                            "  Example: url https://example.com\n"
+                        )
+                    elif topic in ("quit", "exit"):
+                        print(
+                            "\nExit Loc8r\n"
+                            "Usage: quit | exit\n"
+                            "  Closes the browser and terminates the session.\n"
+                        )
+                    else:
+                        print(f"Unknown help topic: {topic}. Type 'help' to see available commands.")
             elif cmd == "url":
                 if not arg:
                     print("Usage: url https://example.com")
@@ -113,7 +155,7 @@ def main() -> None:
                 # Usage: codegen <json> [PageName] [outDir]
                 try:
                     if not arg:
-                        print("Usage: codegen <json> [PageName] [outDir]")
+                        print("Usage: codegen <json> [PageName] [outDir]\nFor detailed options and examples, type: help codegen")
                     else:
                         parts = arg.split()
                         json_path_str = parts[0]

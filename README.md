@@ -39,7 +39,7 @@ You will see a Chromium window open and a prompt in your terminal. Available com
 - `url <https://...>` Navigate the opened page to a specific URL.
 - `scan [output.json]` Scan current page for interactable elements and print best-effort unique locators (XPath, CSS, id, Playwright role) and a human-friendly unique Name. If `output.json` is provided, the JSON results will be saved to that file as well.
 - `codegen <json> [PageName] [outDir]` Generate a Java Page Object (@FindBy, PageFactory) from a scan JSON. If `PageName` is omitted, you'll be prompted. `outDir` defaults to `src/test/java`.
-- `help` Show commands.
+- `help [command]` Show general help or detailed help for a specific command. Example: `help codegen`.
 - `quit` or `exit` Close the browser and exit.
 
 Example session:
