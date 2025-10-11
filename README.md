@@ -38,6 +38,7 @@ You will see a Chromium window open and a prompt in your terminal. Available com
 
 - `url <https://...>` Navigate the opened page to a specific URL.
 - `scan [output.json]` Scan current page for interactable elements and print best-effort unique locators (XPath, CSS, id, Playwright role) and a human-friendly unique Name. If `output.json` is provided, the JSON results will be saved to that file as well.
+- `codegen <json> [PageName] [outDir]` Generate a Java Page Object (@FindBy, PageFactory) from a scan JSON. If `PageName` is omitted, you'll be prompted. `outDir` defaults to `src/test/java`.
 - `help` Show commands.
 - `quit` or `exit` Close the browser and exit.
 
@@ -76,3 +77,75 @@ Each candidate is validated for uniqueness against the live DOM before being acc
 ## Notes
 - Increase default timeouts or adjust logic as needed for heavy/SPA pages.
 - The scanner looks for typical interactable elements: links, buttons, inputs (non-hidden), selects, textareas, role=button, tabindex, and contenteditable=true.
+
+---
+
+## Generate Java Page Objects (PageFactory, @FindBy)
+This project includes a simple code generator that converts scanned locator JSON into classic Selenium Page Object classes using @FindBy annotations.
+
+Requirements:
+- Jinja2 (added to project dependencies)
+
+Usage:
+```bash
+# Using the dedicated CLI command (recommended)
+loc8r-codegen \
+  --input masha.json \
+  --package com.example.pages \
+  --class-name Login \
+  --out src/test/java
+
+# Directory of JSON scans (file stem will be used as page name if --class-name not given)
+loc8r-codegen \
+  --input scans/ \
+  --package com.example.pages \
+  --out src/test/java
+
+# You can still use the module (alternative)
+python -m locator_scanner.codegen_pf \
+  --input masha.json \
+  --package com.example.pages \
+  --class-name Login \
+  --out src/test/java
+```
+
+Options:
+- --package: Java package for generated classes (default: com.example.pages)
+- --class-name: Base page name (e.g., "Login"); class is named <Name>Page
+- --out: Output root directory (default: src/test/java)
+- --timeout-seconds: Wait timeout seconds (default: 5)
+- --name-annotation-import: Fully-qualified @Name annotation import (default: com.example.annotations.Name)
+
+Example output (given masha.json and --class-name Login):
+```java
+package com.example.pages;
+
+import com.example.annotations.Name;
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.*;
+import org.openqa.selenium.support.ui.*;
+import java.time.Duration;
+
+@Name("Login")
+public class LoginPage {
+    private final WebDriver driver;
+    private final Duration timeout = Duration.ofSeconds(5);
+
+    @Name("Username")
+    @FindBy(id = "user-name")
+    private WebElement userName;
+
+    @Name("Password")
+    @FindBy(id = "password")
+    private WebElement password;
+
+    @Name("Login")
+    @FindBy(css = "input[data-test='login-button']")
+    private WebElement loginButton;
+
+    public LoginPage(WebDriver driver) {
+        this.driver = driver;
+        PageFactory.initElements(driver, this);
+    }
+}
+```

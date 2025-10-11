@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Optional
 
 from playwright.sync_api import sync_playwright, Page
 
+from .codegen_pf import (
+    generate_for_file,
+    DEFAULT_PACKAGE,
+    DEFAULT_TIMEOUT,
+    DEFAULT_NAME_ANNOTATION_IMPORT,
+)
 from .xpath_builder import scan_interactables
 
 BANNER = (
@@ -12,6 +19,7 @@ BANNER = (
     "Commands:\n"
     "  url <https://...>      -> navigate to a URL in the opened page\n"
     "  scan [output.json]     -> scan page for interactable elements and print locators; optionally save JSON to file\n"
+    "  codegen <json> [PageName] [outDir] -> generate Java Page Object (@FindBy) from scan JSON; prompts for PageName if omitted\n"
     "  help                   -> show this help\n"
     "  quit/exit              -> close browser and exit\n"
 )
@@ -101,6 +109,39 @@ def main() -> None:
                     _print_scan(page, out_path)
                 except Exception as e:
                     print(f"Scan failed: {e}")
+            elif cmd == "codegen":
+                # Usage: codegen <json> [PageName] [outDir]
+                try:
+                    if not arg:
+                        print("Usage: codegen <json> [PageName] [outDir]")
+                    else:
+                        parts = arg.split()
+                        json_path_str = parts[0]
+                        page_name = None
+                        out_dir_str = "src/test/java"
+                        if len(parts) >= 2:
+                            page_name = parts[1]
+                        if len(parts) >= 3:
+                            out_dir_str = parts[2]
+                        if not page_name:
+                            try:
+                                page_name = input("Provide the page name (e.g., Login): ").strip()
+                            except (EOFError, KeyboardInterrupt):
+                                page_name = ""
+                        if not page_name:
+                            print("Page name is required. Aborting codegen.")
+                        else:
+                            out_path = generate_for_file(
+                                json_path=Path(json_path_str),
+                                package=DEFAULT_PACKAGE,
+                                provided_page_name=page_name,
+                                out_dir=Path(out_dir_str),
+                                timeout_seconds=DEFAULT_TIMEOUT,
+                                name_annotation_import=DEFAULT_NAME_ANNOTATION_IMPORT,
+                            )
+                            print(f"Generated: {out_path}")
+                except Exception as e:
+                    print(f"Code generation failed: {e}")
             else:
                 print("Unknown command. Type 'help' for commands.")
 
